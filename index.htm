@@ -1,0 +1,349 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>BOAC — Accès restreint</title>
+  <style>
+    :root { color-scheme: dark; }
+    * { box-sizing: border-box; }
+    body{
+      margin:0;
+      background:#06070a;
+      color:#e7e7e7;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono","Courier New", monospace;
+      letter-spacing:.2px;
+    }
+    .wrap{ max-width: 980px; margin:0 auto; padding: 34px 16px 64px; }
+    .brand{ display:flex; align-items:baseline; gap:14px; margin-bottom: 16px; }
+    .badge{
+      border:1px solid rgba(255,255,255,.18);
+      padding:6px 10px;
+      font-size:12px;
+      text-transform:uppercase;
+      letter-spacing:1.2px;
+      opacity:.92;
+    }
+    h1{ margin:0; font-size:18px; font-weight:650; opacity:.95; }
+    .panel{
+      border:1px solid rgba(255,255,255,.12);
+      background: rgba(255,255,255,.03);
+      padding:18px;
+      border-radius:12px;
+      box-shadow: 0 0 0 1px rgba(255,255,255,.03) inset;
+    }
+    .row{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+    input{
+      flex:1 1 280px;
+      background: rgba(0,0,0,.35);
+      border:1px solid rgba(255,255,255,.16);
+      color:#fff;
+      padding:12px 12px;
+      border-radius:10px;
+      outline:none;
+    }
+    input:focus{ border-color: rgba(255,255,255,.28); }
+    button{
+      background: rgba(255,255,255,.08);
+      border:1px solid rgba(255,255,255,.18);
+      color:#fff;
+      padding:12px 14px;
+      border-radius:10px;
+      cursor:pointer;
+    }
+    button:hover{ background: rgba(255,255,255,.12); }
+    .hint{
+      margin-top:10px;
+      font-size:12px;
+      opacity:.72;
+      line-height:1.5;
+    }
+    .chips{
+      margin-top: 12px;
+      display:flex;
+      gap: 8px;
+      flex-wrap:wrap;
+    }
+    .chip{
+      font-size: 12px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,.14);
+      background: rgba(0,0,0,.22);
+      opacity: .9;
+      cursor: pointer;
+      user-select:none;
+    }
+    .chip:hover{ background: rgba(255,255,255,.07); }
+
+    .log{
+      margin-top:18px;
+      padding:14px;
+      border-radius:12px;
+      border:1px solid rgba(255,255,255,.10);
+      background: rgba(0,0,0,.38);
+      min-height: 280px;
+      white-space: pre-wrap;
+      line-height: 1.45;
+      overflow-x: auto;
+    }
+    .muted{ opacity:.7; }
+    .footer{ margin-top:12px; font-size:12px; opacity:.55; }
+    .sep{ opacity:.22; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="brand">
+      <div class="badge">BOAC</div>
+      <h1>Bureau d’Observation des Anomalies Comportementales — Accès restreint</h1>
+    </div>
+
+    <div class="panel">
+      <div class="row">
+        <input id="q" placeholder="Entrer un nom (ex: Edouard Zoller)" autocomplete="off" />
+        <button id="btn">Rechercher</button>
+        <button id="clear">Effacer</button>
+      </div>
+
+      <div class="hint">
+        Note : portail fictif (mise en scène). Aucun lien avec une institution réelle.
+      </div>
+
+      <div class="chips">
+        <div class="chip" data-demo="1">Charger un dossier (démo)</div>
+        <div class="chip" data-demo="2">Mode “plus sombre”</div>
+        <div class="chip" data-demo="3">Mode “archive froide”</div>
+      </div>
+
+      <div id="out" class="log"><span class="muted">En attente de requête…</span></div>
+      <div class="footer">Journal système : <span id="ts" class="muted"></span></div>
+    </div>
+  </div>
+
+  <script>
+    const out = document.getElementById("out");
+    const q = document.getElementById("q");
+    const ts = document.getElementById("ts");
+
+    function nowStamp(){
+      const d = new Date();
+      return d.toLocaleString("fr-FR", { hour12:false });
+    }
+
+    function typeLines(lines, ms=18){
+      out.textContent = "";
+      let i = 0, j = 0;
+      const timer = setInterval(() => {
+        if(i >= lines.length){ clearInterval(timer); return; }
+        const line = lines[i];
+        if(j < line.length){
+          out.textContent += line[j++];
+        } else {
+          out.textContent += "\n";
+          i++; j = 0;
+        }
+      }, ms);
+    }
+
+    // Dossiers "trash d'ambiance" mais PAS humiliants/perso.
+    const DOSSIERS = {
+      principal: (fullName, age) => ([
+        "INITIALISATION…",
+        "Vérification des autorisations… OK",
+        "Indexation du registre… OK",
+        " ",
+        "DOSSIER CONFIDENTIEL",
+        "Bureau d’Observation des Anomalies Comportementales (BOAC)",
+        "Division Surveillance Passive",
+        "Niveau d’accès requis : 4",
+        "----------------------------------------",
+        `Nom du sujet : ${fullName}`,
+        `Âge : ${age}`,
+        "Statut : ACTIF",
+        "Niveau d’alerte : 4/5",
+        "Catégorie : Profil sensible — historique archivé",
+        "----------------------------------------",
+        "Observations récentes :",
+        "- Vigilance sociale élevée. Analyse de l’environnement avant interaction.",
+        "- Évitement quand une conversation touche aux “archives”.",
+        "- Activité tardive intermittente, motifs non déclarés.",
+        " ",
+        "Note interne :",
+        "Le sujet pense que certaines traces s’effacent.",
+        "Elles se déplacent seulement.",
+        " ",
+        "Recommandation :",
+        "Maintenir la surveillance passive.",
+        "Ne pas informer le sujet.",
+        " ",
+        "Dernière mise à jour :",
+        "Consultation du dossier enregistrée.",
+        "Sujet actuellement en train de lire son propre profil."
+      ]),
+
+      // Dossier “glaçant” : le truc qui fait monter la pression sans accuser de crime.
+      transparence: (fullName) => ([
+        "OUVERTURE D’ANNEXE…",
+        "Annexe : TRANSPARENCE OPÉRATIONNELLE",
+        "----------------------------------------",
+        `Sujet : ${fullName}`,
+        " ",
+        "Constat :",
+        "Le sujet sous-estime ce qui est observable à partir de détails anodins.",
+        " ",
+        "Exemples de signaux (non exhaustif) :",
+        "- Horaires de connexion irréguliers → patterns stables malgré tout.",
+        "- Itinéraires “aléatoires” → répétitions faibles mais réelles.",
+        "- Changements d’humeur → déclencheurs récurrents.",
+        " ",
+        "Note :",
+        "Ce dossier ne contient pas d’accusations.",
+        "Il contient des corrélations.",
+        " ",
+        "Directive :",
+        "Ne pas confronter le sujet. Laisser le doute travailler."
+      ]),
+
+      // Dossier “archive froide” : clinique, inhumain, dérangeant.
+      archiveFroide: (fullName) => ([
+        "OUVERTURE D’ARCHIVE…",
+        "Module : ARCHIVAGE FROID (lecture seule)",
+        "----------------------------------------",
+        `Sujet : ${fullName}`,
+        " ",
+        "Résumé :",
+        "- Profil : coopératif en surface, défensif sous pression.",
+        "- Réaction aux silences : comble l’espace trop vite.",
+        "- Tolérance à l’incertitude : faible.",
+        " ",
+        "Indicateurs :",
+        "- Ajuste son récit selon l’auditoire.",
+        "- Se méfie quand un détail “anodin” est trop précis.",
+        " ",
+        "Conclusion :",
+        "Le sujet n’est pas dangereux.",
+        "Le sujet est prévisible.",
+        " ",
+        "Clôture…"
+      ])
+    };
+
+    function dossierInconnu(name){
+      ts.textContent = nowStamp();
+      const safe = (name || "").trim().slice(0, 80);
+      typeLines([
+        "INITIALISATION…",
+        "Vérification des autorisations… OK",
+        `Requête : "${safe}"`,
+        " ",
+        "Aucun dossier prioritaire trouvé.",
+        "Suggestion : vérifier l’orthographe.",
+        " ",
+        "Note système :",
+        "Portail fictif (prank).",
+        "----------------------------------------",
+        "Astuce : essayez \"Edouard Zoller\"."
+      ], 20);
+    }
+
+    function showBundleForEdouard(){
+      ts.textContent = nowStamp();
+      const fullName = "Edouard Zoller";
+      const age = 25;
+
+      // On affiche un “bundle” (plusieurs dossiers) à la suite.
+      const lines = [
+        ...DOSSIERS.principal(fullName, age),
+        " ",
+        "========================================",
+        "ANNEXE 01 — TRANSPARENCE OPÉRATIONNELLE",
+        "========================================",
+        " ",
+        ...DOSSIERS.transparence(fullName),
+        " ",
+        "========================================",
+        "ANNEXE 02 — ARCHIVAGE FROID",
+        "========================================",
+        " ",
+        ...DOSSIERS.archiveFroide(fullName),
+      ];
+      typeLines(lines, 12);
+    }
+
+    function showModeSombre(){
+      ts.textContent = nowStamp();
+      typeLines([
+        "MODE SOMBRE — ACTIVÉ",
+        " ",
+        "Le pire n’est pas ce qui est écrit.",
+        "Le pire, c’est ce qui peut être déduit.",
+        " ",
+        "Vous pouvez fermer cette page.",
+        "Le journal, lui, reste ouvert.",
+        " ",
+        "Clé : la peur vient du vide.",
+        "Fin."
+      ], 16);
+    }
+
+    function showModeArchive(){
+      ts.textContent = nowStamp();
+      typeLines([
+        "MODE ARCHIVE FROIDE — ACTIVÉ",
+        " ",
+        "Les humains pensent que leurs contradictions les protègent.",
+        "Elles les indexent.",
+        " ",
+        "Toute consultation est un marqueur.",
+        "Toute hésitation est une donnée.",
+        " ",
+        "Clôture."
+      ], 18);
+    }
+
+    function run(){
+      const name = q.value.trim();
+      if(!name) return dossierInconnu("");
+
+      const normalized = name
+        .toLowerCase()
+        .normalize("NFD").replace(/[\u0300-\u036f]/g, "") // enlève accents
+        .replace(/\s+/g, " ")
+        .trim();
+
+      const isEdouard =
+        normalized === "edouard zoller" ||
+        normalized === "edward zoller" ||
+        normalized === "edouard  zoller";
+
+      if(isEdouard) showBundleForEdouard();
+      else dossierInconnu(name);
+    }
+
+    document.getElementById("btn").addEventListener("click", run);
+
+    document.getElementById("clear").addEventListener("click", () => {
+      q.value = "";
+      out.innerHTML = '<span class="muted">En attente de requête…</span>';
+      ts.textContent = nowStamp();
+      q.focus();
+    });
+
+    q.addEventListener("keydown", (e) => {
+      if(e.key === "Enter") run();
+    });
+
+    document.querySelectorAll(".chip").forEach(chip => {
+      chip.addEventListener("click", () => {
+        const v = chip.getAttribute("data-demo");
+        if(v === "1"){ q.value = "Edouard Zoller"; run(); }
+        if(v === "2"){ showModeSombre(); }
+        if(v === "3"){ showModeArchive(); }
+      });
+    });
+
+    ts.textContent = nowStamp();
+  </script>
+</body>
+</html>
